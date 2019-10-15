@@ -5,7 +5,7 @@ This repository contains the source files for lambda functions: [boba-backend-ga
 ## Requirements
 
 * Unix/Bash
-* AWS CLI
+* AWS CLI (authenticated)
 
 ## Instructions
 
