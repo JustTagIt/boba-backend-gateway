@@ -23,7 +23,7 @@ def validate_upload(uid):
     s3 = boto3.client('s3')
     bucket = "boba-encounters-test"
     strUID = str(uid)
-    prefix = strUID +"/manifest.json"
+    prefix = strUID +"/manifest.txt"
     try:
         for key in s3.list_objects(Bucket=bucket, Prefix=prefix)['Contents']:
             log("KEY -- " + key['Key'])
