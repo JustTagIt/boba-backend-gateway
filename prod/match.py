@@ -41,7 +41,7 @@ def send_request (uid, version, isTest=True):
     resp = client.send_command(
         DocumentName="AWS-RunShellScript", # One of AWS' preconfigured documents
         Parameters={'commands': commands},
-        InstanceIds=['i-0ef37d38dbbcc50d3']
+        InstanceIds=['i-089b00695f30db381']
     )
     log('request sent')
     log(resp)
