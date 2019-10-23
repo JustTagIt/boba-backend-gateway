@@ -52,7 +52,7 @@ def send_sync_request (uid):
     resp = client.send_command(
         DocumentName="AWS-RunShellScript", # One of AWS' preconfigured documents
         Parameters={'commands': commands},
-        InstanceIds=['i-08748d9ff0c114b6f']
+        InstanceIds=['i-0a87bc349133c1efb']
     )
     
     log(resp)
