@@ -79,7 +79,9 @@ def lambda_handler(event, context):
         return bad_exit("Missing MODE!", event['IMEI'])
     if not event['MODE'] in SUPPORTED_MODES:
         return bad_exit("Invalid mode argument!", event['IMEI'])
-
+    imei = event['IMEI']
+    if 'UID' in event:
+        uid = event['UID']
     # Parse mode
     mode = event['MODE']
 
@@ -97,31 +99,27 @@ def lambda_handler(event, context):
     # Handle match requests, will return an ID for locating the results in s3
     elif mode == "matchProduction" or mode == "matchTest":
         if not "UID" in event:
-            return bad_exit("ERROR: Missing UID")
+            return bad_exit("ERROR: Missing UID in MatchProdruction or MatchTest")
         print("MATCH was called")
         if mode == "matchTest":
             return good_exit_string(match.send_request(event["UID"])) #test matches
         else:
             return good_exit_string(match.send_request(event["UID"], False)) #production matches
-        
-    # If serving a different request, ensure an integer UID is provided
-    elif not 'UID' in event:
-        print("MISSING UID")
-        return bad_exit("Missing UID!", event['IMEI'])
-    elif type(event['UID']) != int:
-        print("UID IS NOT AN INT")
-        return bad_exit("UID must be an integer!", event['IMEI'])
-    
-    uid, imei = event['UID'], event['IMEI'] 
-    
+
     # Handle upload confirmation (Sync Up)
     if mode == "confirmUpload":
+        if not "UID" in event:
+            return bad_exit("ERROR: Missing UID In ConfirmUpload")
+        # If serving a different request, ensure an integer UID is provided
+        elif type(event['UID']) != int:
+            print("UID IS NOT AN INT")
+            return bad_exit("UID must be an integer!", event['IMEI'])
         print("CONFIRM upload was called")
         if sync_up.confirm_upload(uid, imei):
             return good_exit("updated record " + str(uid) + " from IMEI " + imei + " to 'Used' flag")
         else:
             return bad_exit("confirmation of upload with uid: " + str(uid) + " failed", imei)
-    
+
     # Handle batch fetching (Sync Down)
     elif mode == "fetchBatch":
         print("FETCHBATCH upload was called")
@@ -130,8 +128,8 @@ def lambda_handler(event, context):
             return ""
         else:
              return good_exit_string(sync_down.fetch_batch(uid, imei))
-        
-    
+
+
 
 
 # Helper class to convert a DynamoDB item to JSON.

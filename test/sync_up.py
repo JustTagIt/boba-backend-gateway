@@ -35,6 +35,8 @@ def validate_upload(uid):
                 log("NOT FOUND -- Could NOT find manifest.json, upload failed")
                 return False
     except botocore.exceptions.ClientError as e:
+        log("FAILED match.send sync request failed! log msg: ")
+        log(e)
         return False
 
 def record_id_used(uid, imei):
