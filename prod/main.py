@@ -53,7 +53,6 @@ SUPPORTED_MODES = [
     "requestNewId",
     "getMaxId",
     "confirmUpload",
-    "fetchBatch",
     "matchProduction",
     "matchTest"
 ]
@@ -126,14 +125,6 @@ def lambda_handler(event, context):
         else:
             return bad_exit("confirmation of upload with uid: " + str(uid) + " failed", imei)
     
-    # Handle batch fetching (Sync Down)
-    elif mode == "fetchBatch":
-        print("FETCHBATCH upload was called")
-        #query db for list of next ten UIDs the phone needs
-        if(uid == sync_down.get_max_id_issued()):
-            return ""
-        else:
-             return good_exit_string(sync_down.fetch_batch(uid, imei))
         
 
 
