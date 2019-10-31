@@ -21,20 +21,16 @@ VERSION_PRODUCTION = "1"
 VERSION_TEST = "1"
 
 #sends a match request with a UID and either MATCH or TEST
-def send_request (uid, version, isTest=True):
+def send_request (uid, isTest=True):
     log('sending request ' + uid)
     if OFFLINE:
         return "Server is offline for maintenance"
     client = boto3.client('ssm')
     id = generate_ID()
     if not isTest:
-        if (version != VERSION_PRODUCTION):
-            return "Version " + version + " out of date, required version " + VERSION_PRODUCTION
-        run_command_str = str("./run.sh MATCH_PRODUCTION " + uid + " " + id + " " + VERSION_PRODUCTION)
+        run_command_str = str("sudo /run.sh MATCH_PRODUCTION " + uid + " " + id + " " + "1")
     else:
-        if (version != VERSION_TEST):
-            return "Version " + version + " out of date, required version " + VERSION_TEST
-        run_command_str = str("./run.sh MATCH_TEST " + uid + " " + id + " " + VERSION_TEST)
+        run_command_str = str("sudo /run.sh MATCH_TEST " + uid + " " + id + " " + "1")
             
     commands = [run_command_str]
     log('MATCH request sent on UID: ' + str(uid))
