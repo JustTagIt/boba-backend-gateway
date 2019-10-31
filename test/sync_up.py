@@ -29,7 +29,7 @@ def validate_upload(uid):
             log("KEY -- " + key['Key'])
             if "manifest.txt" in key['Key']:
                 log("FOUND" + key['Key'] + " -- upload confirmed")
-                match.send_sync_request(uid)
+                #match.send_sync_request(uid)
                 return True
             else:
                 log("NOT FOUND -- Could NOT find manifest.json, upload failed")
