@@ -7,22 +7,30 @@ from botocore.exceptions import ClientError
 
 
 def confirm_upload(uid, imei):
-    if validate_upload(uid):
+    try:
         record_id_used(uid, imei)
-        return True
-    else:
+        upload_manifest_to_S3(uid, imei)
+        return validate_upload(uid)
+    except botocore.exceptions.ClientError as e:
+        log(e)
         return False
+
 
 def validate_upload(uid):
     s3 = boto3.client('s3')
-    bucket = "fett2-sarlacc-pit" # TODO: Change to boba-encounters when 
-    prefix = str(uid)
+    bucket = "boba-encounters"
+    strUID = str(uid)
+    prefix = strUID +"/manifest.txt"
     try:
-        data = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
-        if (data['KeyCount'] == 0):
-            return False
-        else:
-            return True
+        for key in s3.list_objects(Bucket=bucket, Prefix=prefix)['Contents']:
+            log("KEY -- " + key['Key'])
+            if "manifest.txt" in key['Key']:
+                log("FOUND" + key['Key'] + " -- upload confirmed")
+                match.send_sync_request(uid)
+                return True
+            else:
+                log("NOT FOUND -- Could NOT find manifest.json, upload failed")
+                return False
     except botocore.exceptions.ClientError as e:
         return False
    
@@ -30,32 +38,32 @@ def validate_upload(uid):
 def record_id_used(uid, imei):
     dynamodb = boto3.resource("dynamodb")
     table = dynamodb.Table("BOBA-Encounters")
-    
-    fe = Attr('UID').eq(uid) & Attr('IMEI').eq(imei)
+
+    fe = Attr('UID').eq(uid) & Attr('IMEI').eq(imei) & Attr('Flag').eq("Issued")
     pe = "Flag"
-    
+
     response = table.scan(
-            FilterExpression = fe,
-            ProjectionExpression = pe,
-            )
-              
+        FilterExpression = fe,
+        ProjectionExpression = pe,
+    )
+
     data = response['Items']
     if (len(data)>0):
         if(data[0]['Flag'] == "Issued"):
             response = table.update_item(
-            Key={
-                'UID': decimal.Decimal(uid),
-                'IMEI': imei
-            },
-            UpdateExpression="SET #Flag = :new",
-            ExpressionAttributeValues={
-                ':new': 'Used',
-            },
-            ExpressionAttributeNames = {
-                 '#Flag': 'Flag',
-            },
-            ReturnValues="UPDATED_NEW",
-            ) 
+                Key={
+                    'UID': decimal.Decimal(uid),
+                    'IMEI': imei,
+                },
+                UpdateExpression="SET #Flag = :new",
+                ExpressionAttributeValues={
+                    ':new': 'Used',
+                },
+                ExpressionAttributeNames = {
+                    '#Flag': 'Flag',
+                },
+                ReturnValues="UPDATED_NEW",
+            )
         
 def request_new_id(imei):
     UID=increment_id()
@@ -83,4 +91,20 @@ def create_enrollment_placeholder(uid, imei):
             'Flag': "Issued"
         }
     )
+
+def log(message):
+    print(message)
+
+def upload_manifest_to_S3(uid, imei):
+
+    s3 = boto3.client("s3")
+
+    bucket = "boba-encounters"
+    strUID = str(uid)
+    file_name = strUID +"/manifest.txt"
+    manifest_header="Manifest\nCreated by IMEI: " + imei + "\n" + "Creation time: " + str(datetime.now()) + "\nFiles:\n"
+    manifest_content = ""
+    for key in s3.list_objects(Bucket=bucket, Prefix=strUID)['Contents']:
+        manifest_content += key['Key'] + "\n"
+    s3.put_object(Body=manifest_header + manifest_content, Bucket=bucket, Key=file_name)
     

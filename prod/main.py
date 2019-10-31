@@ -30,7 +30,9 @@ Input: {"MODE": "match", "GID": <Integer>}
 Return: MatchID (used for locating the data on S3)
 NOTE: in the future the return will ideally be below:
 Return: [{<GID>, <Integer Score>}, {<GID>, <Integer Score>}, {<GID>, <Integer Score>}, ...]
-"""\
+"""
+
+# Uploaded test using 'deploy.sh prod'
 
 import json
 import logging
@@ -51,7 +53,6 @@ SUPPORTED_MODES = [
     "requestNewId",
     "getMaxId",
     "confirmUpload",
-    "fetchBatch",
     "matchProduction",
     "matchTest"
 ]
@@ -85,48 +86,44 @@ def lambda_handler(event, context):
     
     # Handle requests for a new ID (Sync Up)
     if mode == "requestNewId":
+        print("REQUEST ID was called")
         return good_exit(sync_up.request_new_id(event['IMEI']))
         
     # Handle get maximum ID requests (Sync Down)
     elif mode == "getMaxId":
+        print("GET MAX ID was called")
         return good_exit_string(sync_down.get_max_id_issued())
         
     # Handle match requests, will return an ID for locating the results in s3
     elif mode == "matchProduction" or mode == "matchTest":
         if not "UID" in event:
             return bad_exit("Missing UID")
-        if not "VERSION" in event:
-            return bad_exit("Missing VERSION")
+        print("MATCH was called")
         if mode == "matchTest":
-            return good_exit_string(match.send_request(event["UID"], event["VERSION"])) #test matches
+            return good_exit_string(match.send_request(event["UID"])) #test matches
         else:
-            return good_exit_string(match.send_request(event["UID"], event["VERSION"], False)) #production matches
+            return good_exit_string(match.send_request(event["UID"] False)) #production matches
         
     # If serving a different request, ensure an integer UID is provided
     elif not 'UID' in event:
+        print("MISSING UID")
         return bad_exit("Missing UID!", event['IMEI'])
     elif type(event['UID']) != int:
+        print("UID IS NOT AN INT")
         return bad_exit("UID must be an integer!", event['IMEI'])
     
     # Parse uid/imei
     uid, imei = event['UID'], event['IMEI']
     
-    # Handle upload confirmation (Sync Up)
+     # Handle upload confirmation (Sync Up)
     if mode == "confirmUpload":
+        print("CONFIRM upload was called")
         if sync_up.confirm_upload(uid, imei):
             return good_exit("updated record " + str(uid) + " from IMEI " + imei + " to 'Used' flag")
         else:
             return bad_exit("confirmation of upload with uid: " + str(uid) + " failed", imei)
     
-    # Handle batch fetching (Sync Down)
-    elif mode == "fetchBatch":
-        #query db for list of next ten UIDs the phone needs
-        if(uid == sync_down.get_max_id_issued()):
-            return ""
-        else:
-            return good_exit_string(sync_down.fetch_batch(uid, imei))
         
-    
 
 
 # Helper class to convert a DynamoDB item to JSON.
