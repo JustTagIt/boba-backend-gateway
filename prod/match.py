@@ -37,16 +37,34 @@ def send_request (uid, version, isTest=True):
         run_command_str = str("./run.sh MATCH_TEST " + uid + " " + id + " " + VERSION_TEST)
             
     commands = [run_command_str]
-
+    log('MATCH request sent on UID: ' + str(uid))
     resp = client.send_command(
         DocumentName="AWS-RunShellScript", # One of AWS' preconfigured documents
         Parameters={'commands': commands},
-        InstanceIds=['i-0a87bc349133c1efb']
+        InstanceIds=['i-089b00695f30db381']
     )
     log('request sent')
     log(resp)
     
     return id
+
+#sends SYNC request
+def send_sync_request (uid):
+    if OFFLINE:
+        return "Server is offline for maintenance"
+    client = boto3.client('ssm')
+    strUID = str(uid)
+    run_command_str = "sudo /run.sh SYNC_ALL"
+    commands = [run_command_str]
+    log('SYNC_ALL request ')
+    resp = client.send_command(
+        DocumentName="AWS-RunShellScript", # One of AWS' preconfigured documents
+        Parameters={'commands': commands},
+        InstanceIds=['i-0a87bc349133c1efb']
+    )
+    
+    log(resp)
+
 
 #generate an ID based on time
 def generate_ID ():
