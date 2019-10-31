@@ -102,7 +102,7 @@ def lambda_handler(event, context):
         if mode == "matchTest":
             return good_exit_string(match.send_request(event["UID"])) #test matches
         else:
-            return good_exit_string(match.send_request(event["UID"] False)) #production matches
+            return good_exit_string(match.send_request(event["UID"], False)) #production matches
         
     # If serving a different request, ensure an integer UID is provided
     elif not 'UID' in event:
