@@ -98,13 +98,11 @@ def lambda_handler(event, context):
     elif mode == "matchProduction" or mode == "matchTest":
         if not "UID" in event:
             return bad_exit("Missing UID")
-        if not "VERSION" in event:
-            return bad_exit("Missing VERSION")
         print("MATCH was called")
         if mode == "matchTest":
-            return good_exit_string(match.send_request(event["UID"], event["VERSION"])) #test matches
+            return good_exit_string(match.send_request(event["UID"])) #test matches
         else:
-            return good_exit_string(match.send_request(event["UID"], event["VERSION"], False)) #production matches
+            return good_exit_string(match.send_request(event["UID"] False)) #production matches
         
     # If serving a different request, ensure an integer UID is provided
     elif not 'UID' in event:

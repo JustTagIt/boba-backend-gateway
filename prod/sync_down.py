@@ -16,10 +16,9 @@ class DecimalEncoder(json.JSONEncoder):
     
 
 def get_max_id_issued():
-     dynamodb = boto3.resource("dynamodb")
+    dynamodb = boto3.resource("dynamodb")
     table = dynamodb.Table("BOBA-IDCounter")
     response = table.get_item(Key={'ID': '0'})
     UID = int(response['Item']['UID'])-1
     print("MAX ID RESULT FROM DYNAMO: " + str(UID))
-
     return UID
