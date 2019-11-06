@@ -25,16 +25,16 @@ def send_request (uid, isTest=True):
     client = boto3.client('ssm')
     id = generate_ID()
     if not isTest:
-        run_command_str = str("sudo /run.sh MATCH_PRODUCTION " + uid + " " + id + " " + "1")
+        run_command_str = str("sudo /run.sh MATCH_PRODUCTION " + str(uid) + " " + id + " " + "1")
     else:
-        run_command_str = str("sudo /run.sh MATCH_TEST " + uid + " " + id + " " + "1")
+        run_command_str = str("sudo /run.sh MATCH_TEST " + str(uid) + " " + id + " " + "1")
             
     commands = [run_command_str]
     log('MATCH request sent on UID: ' + str(uid))
     resp = client.send_command(
         DocumentName="AWS-RunShellScript", # One of AWS' preconfigured documents
         Parameters={'commands': commands},
-        InstanceIds=['i-089b00695f30db381']
+        InstanceIds=['i-0a87bc349133c1efb']
     )
     log(resp)
     
