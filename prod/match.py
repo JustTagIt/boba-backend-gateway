@@ -1,137 +1,75 @@
-#!/usr/bin/env python3
+import json
+import os
+import boto3
+import datetime
+import random
+import time
+import sys
 
-""" 
-Sync Lambda
-===========
-Description: This lambda is the gateway/handler for three kinds of requests from BOBA clients:
-
-[Sync Up]
----------
-Description: Two-parth request to send biometric enrollments to AWS.
-
-Input 1: {"MODE": "requestNewId"}
-Return 1: <ID>
-
-Input 2: {"MODE": "confirmUpload"}
-Return 2: <Confirmation message>
-
-[Sync Down]
------------
-Description: Request biometric enrollments from AWS.
-
-Input: {"MODE": "fetchBatch", "GID": <Integer>}
-Return: <Comma-separated IDs>
-
-[Match]
--------
-Description: Request biometric match results from AWS.
-
-Input: {"MODE": "match", "GID": <Integer>}
-Return: MatchID (used for locating the data on S3)
-NOTE: in the future the return will ideally be below:
-Return: [{<GID>, <Integer Score>}, {<GID>, <Integer Score>}, {<GID>, <Integer Score>}, ...]
+"""
+This class will transmit the data required to match on a specific UID
+The match request will be giving an ID (based on a time) which will be returned to the phone
+This ID will be used to store the data in s3, the phone can use this ID to figure out when the result is complete
+The data will be sent to an ec2 instance which will perform the match
 """
 
-# Uploaded test using 'deploy.sh prod'
+DEBUG = True
 
-import json
-import logging
-import boto3
-import decimal
+OFFLINE = False #toggle the server offline for maintenance
 
-from urllib.request import urlopen, Request
-from urllib.error import URLError, HTTPError
+VERSION_PRODUCTION = "1"
+VERSION_TEST = "1"
 
-# boba app methods
-import sync_up
-import sync_down
-import match
-
-# Uploaded prod using deploy.sh
-
-SUPPORTED_MODES = [
-    "requestNewId",
-    "getMaxId",
-    "confirmUpload",
-    "matchProduction",
-    "matchTest"
-]
-
-def good_exit(msg):
-    return json.dumps(msg, cls=DecimalEncoder)
+#sends a match request with a UID and either MATCH or TEST
+def send_request (uid, isTest=True):
+    log('sending request ' + uid)
+    if OFFLINE:
+        return "Server is offline for maintenance"
+    client = boto3.client('ssm')
+    id = generate_ID()
+    if not isTest:
+        run_command_str = str("sudo /run.sh MATCH_PRODUCTION " + uid + " " + id + " " + "1")
+    else:
+        run_command_str = str("sudo /run.sh MATCH_TEST " + uid + " " + id + " " + "1")
+            
+    commands = [run_command_str]
+    log('MATCH request sent on UID: ' + str(uid))
+    resp = client.send_command(
+        DocumentName="AWS-RunShellScript", # One of AWS' preconfigured documents
+        Parameters={'commands': commands},
+        InstanceIds=['i-089b00695f30db381']
+    )
+    log('request sent')
+    log(resp)
     
-def good_exit_string(msg):
-    return msg
+    return id
 
-def bad_exit(msg, imei="none"):
-    #TODO fix to return json array instead of string
-    print(msg)
-    print("IMEI: "+imei)
-    #return msg
-    return json.dumps(msg, cls=DecimalEncoder)
+#sends SYNC request
+def send_sync_request (uid):
+    if OFFLINE:
+        return "Server is offline for maintenance"
+    client = boto3.client('ssm')
+    strUID = str(uid)
+    run_command_str = "sudo /run.sh SYNC_ALL"
+    commands = [run_command_str]
+    log('SYNC_ALL request ')
+    resp = client.send_command(
+        DocumentName="AWS-RunShellScript", # One of AWS' preconfigured documents
+        Parameters={'commands': commands},
+        InstanceIds=['i-0a87bc349133c1efb']
+    )
     
-    
-def lambda_handler(event, context):
-    
-    # Ensure required arguments are provided
-    if not 'IMEI' in event:
-        return bad_exit("Missing IMEI!")
-    if not 'MODE' in event:
-        return bad_exit("Missing MODE!", event['IMEI'])
-    if not event['MODE'] in SUPPORTED_MODES:
-        return bad_exit("Invalid mode argument!", event['IMEI'])
-        
-    # Parse mode
-    mode = event['MODE']
-    
-    # Handle requests for a new ID (Sync Up)
-    if mode == "requestNewId":
-        print("REQUEST ID was called")
-        return good_exit(sync_up.request_new_id(event['IMEI']))
-        
-    # Handle get maximum ID requests (Sync Down)
-    elif mode == "getMaxId":
-        print("GET MAX ID was called")
-        return good_exit_string(sync_down.get_max_id_issued())
-        
-    # Handle match requests, will return an ID for locating the results in s3
-    elif mode == "matchProduction" or mode == "matchTest":
-        if not "UID" in event:
-            return bad_exit("Missing UID")
-        print("MATCH was called")
-        if mode == "matchTest":
-            return good_exit_string(match.send_request(event["UID"])) #test matches
-        else:
-            return good_exit_string(match.send_request(event["UID"], False)) #production matches
-        
-    # If serving a different request, ensure an integer UID is provided
-    elif not 'UID' in event:
-        print("MISSING UID")
-        return bad_exit("Missing UID!", event['IMEI'])
-    elif type(event['UID']) != int:
-        print("UID IS NOT AN INT")
-        return bad_exit("UID must be an integer!", event['IMEI'])
-    
-    # Parse uid/imei
-    uid, imei = event['UID'], event['IMEI']
-    
-     # Handle upload confirmation (Sync Up)
-    if mode == "confirmUpload":
-        print("CONFIRM upload was called")
-        if sync_up.confirm_upload(uid, imei):
-            return good_exit("updated record " + str(uid) + " from IMEI " + imei + " to 'Used' flag")
-        else:
-            return bad_exit("confirmation of upload with uid: " + str(uid) + " failed", imei)
-    
-        
+    log(resp)
 
 
-# Helper class to convert a DynamoDB item to JSON.
-class DecimalEncoder(json.JSONEncoder):
-    def default(self, o):
-        if isinstance(o, decimal.Decimal):
-            if o % 1 > 0:
-                return float(o)
-            else:
-                return int(o)
-        return super(DecimalEncoder, self).default(o)
+#generate an ID based on time
+def generate_ID ():
+    id = str(datetime.datetime.now()) + str(random.random());
+    log("returning ID " + id)
+    id = id.strip()
+    id = id.replace(" ", "-")
+    return id
+    
+def log(message):
+    if (DEBUG):
+        print(message)
