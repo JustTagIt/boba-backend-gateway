@@ -22,7 +22,7 @@ VERSION_TEST = "1"
 
 #sends a match request with a UID and either MATCH or TEST
 def send_request (uid, isTest=True):
-    log('sending request ' + uid)
+    log('sending request ' + str(uid))
     if OFFLINE:
         return "Server is offline for maintenance"
     client = boto3.client('ssm')
